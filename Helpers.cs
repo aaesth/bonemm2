@@ -66,4 +66,21 @@ public static class Helpers
 
         return (TargetType.Unknown, "", "");
     }
+
+    public static string GetDefaultBonelabModsFolder()
+    {
+        if (OperatingSystem.IsLinux())
+        {
+            string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            return Path.Combine(home, ".local/share/Steam/steamapps/compatdata/1592190/pfx/drive_c/users/steamuser/AppData/LocalLow/Stress Level Zero/BONELAB/Mods");
+        }
+        else if (OperatingSystem.IsWindows())
+        {
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string localLow = Path.Combine(Directory.GetParent(appData)?.FullName ?? "", "LocalLow");
+            return Path.Combine(localLow, "Stress Level Zero", "BONELAB", "Mods");
+        }
+
+        return "./bonelab_mods";
+    }
 }

@@ -85,6 +85,57 @@ public static class ModDownloader
         await ExecuteParallelDownload(http, plan, outputDir, extract, maxParallel, totalBytes);
     }
 
+    public static void ExtractAllToGameFolder(string sourceFolder)
+    {
+        Console.WriteLine("=== Bulk Extract Mods ===");
+        
+        string defaultPath = Helpers.GetDefaultBonelabModsFolder();
+        Console.WriteLine($"Default BONELAB Mods path detected:\n  {defaultPath}\n");
+        Console.Write("Press Enter to use default path, or paste custom Mods path:\n> ");
+        
+        string? inputPath = Console.ReadLine()?.Trim().Trim('"', '\'');
+        string targetPath = string.IsNullOrWhiteSpace(inputPath) ? defaultPath : inputPath;
+
+        if (!Directory.Exists(sourceFolder))
+        {
+            Console.WriteLine($"\n[ERROR] Download directory '{sourceFolder}' does not exist yet.");
+            return;
+        }
+
+        Directory.CreateDirectory(targetPath);
+
+        string[] zipFiles = Directory.GetFiles(sourceFolder, "*.zip", SearchOption.AllDirectories);
+        if (zipFiles.Length == 0)
+        {
+            Console.WriteLine($"\nNo .zip files found in '{sourceFolder}'.");
+            return;
+        }
+
+        Console.WriteLine($"\nExtracting {zipFiles.Length} mod archive(s) to:\n  {targetPath}\n");
+
+        int success = 0;
+        int failed = 0;
+
+        foreach (var zipPath in zipFiles)
+        {
+            string fileName = Path.GetFileName(zipPath);
+            try
+            {
+                Console.Write($"Extracting {fileName}... ");
+                ZipFile.ExtractToDirectory(zipPath, targetPath, overwriteFiles: true);
+                Console.WriteLine("[DONE]");
+                success++;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[FAILED: {ex.Message}]");
+                failed++;
+            }
+        }
+
+        Console.WriteLine($"\nBulk extraction complete! Successfully extracted: {success}, Failed: {failed}");
+    }
+
     private static async Task ExecuteParallelDownload(HttpClient http, List<(ModObject Mod, string Name, ModfileObject? Modfile)> plan, string outputDir, bool extract, int maxParallel, long totalBytes)
     {
         Console.WriteLine($"\nStarting downloads (up to {maxParallel} concurrently)...");
@@ -209,7 +260,6 @@ public static class ModDownloader
         return $"{prefix}[{Helpers.GetBar(pct, 16)}] {pct,4:P0} | {Helpers.HumanSize(slot.BytesDownloaded),7} / {Helpers.HumanSize(slot.TotalBytes),7} | {safeName}";
     }
 
-    // --- API & File Helpers ---
     private static async Task DownloadFileChunked(HttpClient client, string url, string destPath, Action<int> onProgress)
     {
         string tmpPath = destPath + ".part";

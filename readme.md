@@ -19,8 +19,8 @@ Here is a professional, clean `README.md` for **BoneMod Manager**. 🤖🤖🤖�
 
 ### building the exe
 1.  ``git clone https://github.com/aaesth/bonemm2``
-2. ``dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o out``
-3. ``dotnet publish -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -o out``
+2. ``dotnet publish -c Release -r win-x64 -p:PublishSingleFile=true -o out``
+3. ``dotnet publish -c Release -r linux-x64 -p:PublishSingleFile=true -o out``
 
 ---
 

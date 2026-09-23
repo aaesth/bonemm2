@@ -1,4 +1,4 @@
-<img src="https://github.com/aaesth/boneMM/blob/main/attachment.gif?raw=true">^2
+<img src="https://github.com/aaesth/boneMM/blob/main/attachment.gif?raw=true"><a href="https://github.com/aaesth/bonemm">^2<a>
 <h2>100% vibe coded</h2>
 
 Here is a professional, clean `README.md` for **BoneMod Manager**. 🤖🤖🤖🤖🤖👽👽👽👽👾👾👾👾

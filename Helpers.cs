@@ -69,18 +69,98 @@ public static class Helpers
 
     public static string GetDefaultBonelabModsFolder()
     {
+        var saved = SettingsManager.LoadConfig();
+
+        // 1. Check if we already have a saved mods_path that exists
+        if (saved.TryGetValue("mods_path", out var savedMods) && !string.IsNullOrWhiteSpace(savedMods) && Directory.Exists(savedMods))
+        {
+            return savedMods;
+        }
+
+        string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+        // 2. Try default locations
         if (OperatingSystem.IsLinux())
         {
-            string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            return Path.Combine(home, ".local/share/Steam/steamapps/compatdata/1592190/pfx/drive_c/users/steamuser/AppData/LocalLow/Stress Level Zero/BONELAB/Mods");
+            string[] possibleLinuxPaths = new[]
+            {
+                Path.Combine(home, ".local/share/Steam/steamapps/compatdata/1592190/pfx/drive_c/users/steamuser/AppData/LocalLow/Stress Level Zero/BONELAB/Mods"),
+                Path.Combine(home, ".steam/steam/steamapps/compatdata/1592190/pfx/drive_c/users/steamuser/AppData/LocalLow/Stress Level Zero/BONELAB/Mods"),
+                Path.Combine(home, ".steam/root/steamapps/compatdata/1592190/pfx/drive_c/users/steamuser/AppData/LocalLow/Stress Level Zero/BONELAB/Mods"),
+                Path.Combine(home, ".var/app/com.valvesoftware.Steam/data/Steam/steamapps/compatdata/1592190/pfx/drive_c/users/steamuser/AppData/LocalLow/Stress Level Zero/BONELAB/Mods"),
+                Path.Combine(home, ".var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/compatdata/1592190/pfx/drive_c/users/steamuser/AppData/LocalLow/Stress Level Zero/BONELAB/Mods")
+            };
+
+            foreach (string path in possibleLinuxPaths)
+            {
+                if (Directory.Exists(path))
+                {
+                    SettingsManager.SaveConfigValue("mods_path", path);
+                    return path;
+                }
+            }
         }
         else if (OperatingSystem.IsWindows())
         {
             string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             string localLow = Path.Combine(Directory.GetParent(appData)?.FullName ?? "", "LocalLow");
-            return Path.Combine(localLow, "Stress Level Zero", "BONELAB", "Mods");
+            string winPath = Path.Combine(localLow, "Stress Level Zero", "BONELAB", "Mods");
+
+            if (Directory.Exists(winPath))
+            {
+                SettingsManager.SaveConfigValue("mods_path", winPath);
+                return winPath;
+            }
         }
 
-        return "./bonelab_mods";
+        // 3. Prompt user if auto-detection failed
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("\n[!] Could not automatically locate your BONELAB Mods folder.");
+        Console.ResetColor();
+        Console.Write("Please enter/paste your target BONELAB Mods directory path:\n> ");
+
+        string? customInput = Console.ReadLine()?.Trim().Trim('"', '\'');
+
+        while (string.IsNullOrWhiteSpace(customInput))
+        {
+            Console.Write("Path cannot be empty. Please enter a valid path:\n> ");
+            customInput = Console.ReadLine()?.Trim().Trim('"', '\'');
+        }
+
+        string fullPath = Path.GetFullPath(customInput);
+        Directory.CreateDirectory(fullPath);
+        
+        // Save for future runs
+        SettingsManager.SaveConfigValue("mods_path", fullPath);
+
+        return fullPath;
+    }
+
+    public static string GetGameFolder()
+    {
+        var saved = SettingsManager.LoadConfig();
+
+        // Check if we have a saved valid game_path
+        if (saved.TryGetValue("game_path", out var savedGame) && !string.IsNullOrWhiteSpace(savedGame) && Directory.Exists(savedGame))
+        {
+            Console.WriteLine($"Using saved game path: {savedGame}");
+            return savedGame;
+        }
+
+        Console.Write("Enter your BONELAB game folder path\n(Where BONELAB_Steam_Windows64.exe is located):\n> ");
+        string? gamePath = Console.ReadLine()?.Trim().Trim('"', '\'');
+
+        while (string.IsNullOrWhiteSpace(gamePath) || !Directory.Exists(gamePath))
+        {
+            Console.Write("Invalid path or directory does not exist. Please enter a valid folder:\n> ");
+            gamePath = Console.ReadLine()?.Trim().Trim('"', '\'');
+        }
+
+        string fullPath = Path.GetFullPath(gamePath);
+        
+        // Save for future runs
+        SettingsManager.SaveConfigValue("game_path", fullPath);
+
+        return fullPath;
     }
 }

@@ -55,9 +55,10 @@ async Task RunMenu()
         "1. Mod Downloader", 
         "2. Extract All Downloads to BONELAB Mods Folder", 
         "3. MelonLoader Setup", 
-        "4. Settings", 
-        "5. Check for Updates", 
-        "6. Exit" 
+        "4. Download BONELAB Game", 
+        "5. Settings", 
+        "6. Check for Updates", 
+        "7. Exit" 
     };
 
     while (true)
@@ -95,13 +96,14 @@ async Task RunMenu()
             if (key == ConsoleKey.D4 || key == ConsoleKey.NumPad4) { selected = 3; key = ConsoleKey.Enter; }
             if (key == ConsoleKey.D5 || key == ConsoleKey.NumPad5) { selected = 4; key = ConsoleKey.Enter; }
             if (key == ConsoleKey.D6 || key == ConsoleKey.NumPad6) { selected = 5; key = ConsoleKey.Enter; }
+            if (key == ConsoleKey.D7 || key == ConsoleKey.NumPad7) { selected = 6; key = ConsoleKey.Enter; }
         }
         catch (Exception ex) when (ex is IOException || ex is InvalidOperationException)
         {
-            Console.Write("\n[Basic Mode] Type number (1-6) and press Enter: ");
+            Console.Write("\n[Basic Mode] Type number (1-7) and press Enter: ");
             string? input = Console.ReadLine()?.Trim();
             
-            if (int.TryParse(input, out int parsed) && parsed >= 1 && parsed <= 6)
+            if (int.TryParse(input, out int parsed) && parsed >= 1 && parsed <= 7)
             {
                 selected = parsed - 1;
                 key = ConsoleKey.Enter;
@@ -118,9 +120,10 @@ async Task RunMenu()
             if (selected == 0) await ModDownloader.Run(null, outputDir, extract, maxParallel, apiKeyArg, apiBaseArg);
             else if (selected == 1) ModDownloader.ExtractAllToGameFolder(outputDir);
             else if (selected == 2) await MelonLoaderSetup.Run();
-            else if (selected == 3) SettingsManager.RunSettingsMenu();
-            else if (selected == 4) await Updater.CheckForUpdatesAsync();
-            else if (selected == 5) break;
+            else if (selected == 3) await GameInstaller.Run();
+            else if (selected == 4) SettingsManager.RunSettingsMenu();
+            else if (selected == 5) await Updater.CheckForUpdatesAsync();
+            else if (selected == 6) break;
 
             Console.WriteLine("\nPress any key or press Enter to return to the menu...");
             try { Console.ReadKey(true); } catch { Console.ReadLine(); }

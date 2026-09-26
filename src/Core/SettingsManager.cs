@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Spectre.Console;
 
 namespace Bonemm2;
 
@@ -46,17 +47,19 @@ public static class SettingsManager
 
         if (string.IsNullOrWhiteSpace(key))
         {
-            Console.Write("Enter your mod.io API key (from https://mod.io/me/access): ");
-            key = Console.ReadLine()?.Trim();
+            key = AnsiConsole.Prompt(
+                new TextPrompt<string>("Enter your mod.io API key (from [link=https://mod.io/me/access]https://mod.io/me/access[/]): ")
+                    .PromptStyle("cyan"));
             if (string.IsNullOrWhiteSpace(key)) Environment.Exit(1);
             needSave = true;
         }
 
         if (string.IsNullOrWhiteSpace(baseUrl))
         {
-            Console.WriteLine("mod.io retired the old api.mod.io domain — every key now has its own API path.");
-            Console.Write("Enter it from https://mod.io/me/access (looks like https://u-XXXXXX.modapi.io/v1): ");
-            baseUrl = Console.ReadLine()?.Trim();
+            AnsiConsole.MarkupLine("[yellow]mod.io retired the old api.mod.io domain — every key now has its own API path.[/]");
+            baseUrl = AnsiConsole.Prompt(
+                new TextPrompt<string>("Enter it from [link=https://mod.io/me/access]https://mod.io/me/access[/] (e.g. [dim]https://u-XXXXXX.modapi.io/v1[/]): ")
+                    .PromptStyle("cyan"));
             if (string.IsNullOrWhiteSpace(baseUrl)) Environment.Exit(1);
             needSave = true;
         }
@@ -74,38 +77,47 @@ public static class SettingsManager
 
     public static void RunSettingsMenu()
     {
-        Console.WriteLine("=== Settings ===");
+        AnsiConsole.MarkupLine("[bold cyan]=== Settings ===[/]\n");
         
         var saved = LoadConfig();
 
-        string currentKey = saved.GetValueOrDefault("api_key", "Not set");
-        string currentBase = saved.GetValueOrDefault("api_base", "Not set");
-        string currentGame = saved.GetValueOrDefault("game_path", "Not set");
-        string currentMods = saved.GetValueOrDefault("mods_path", "Not set");
+        string currentKey = saved.GetValueOrDefault("api_key", "[dim]Not set[/]");
+        string currentBase = saved.GetValueOrDefault("api_base", "[dim]Not set[/]");
+        string currentGame = saved.GetValueOrDefault("game_path", "[dim]Not set[/]");
+        string currentMods = saved.GetValueOrDefault("mods_path", "[dim]Not set[/]");
 
-        Console.WriteLine($"1. Current API Key:   {currentKey}");
-        Console.WriteLine($"2. Current API Base:  {currentBase}");
-        Console.WriteLine($"3. Saved Game Path:   {currentGame}");
-        Console.WriteLine($"4. Saved Mods Path:  {currentMods}");
-        Console.WriteLine("\nLeave blank and press Enter to keep current value.");
+        var table = new Table().Border(TableBorder.Rounded);
+        table.AddColumn("[bold]Setting[/]");
+        table.AddColumn("[bold]Current Value[/]");
+        table.AddRow("1. API Key", Markup.Escape(currentKey));
+        table.AddRow("2. API Base URL", Markup.Escape(currentBase));
+        table.AddRow("3. Game Path", Markup.Escape(currentGame));
+        table.AddRow("4. Mods Path", Markup.Escape(currentMods));
+        AnsiConsole.Write(table);
 
-        Console.Write("\nEnter new mod.io API Key: ");
-        string? newKey = Console.ReadLine()?.Trim();
-        if (!string.IsNullOrWhiteSpace(newKey)) saved["api_key"] = newKey;
+        AnsiConsole.MarkupLine("\n[grey]Press Enter without typing to keep current value.[/]\n");
 
-        Console.Write("Enter new API Base URL: ");
-        string? newBase = Console.ReadLine()?.Trim();
-        if (!string.IsNullOrWhiteSpace(newBase)) saved["api_base"] = newBase.TrimEnd('/');
+        string newKey = AnsiConsole.Prompt(
+            new TextPrompt<string>("New mod.io API Key: ")
+                .AllowEmpty());
+        if (!string.IsNullOrWhiteSpace(newKey)) saved["api_key"] = newKey.Trim();
 
-        Console.Write("Enter BONELAB Game Folder Path: ");
-        string? newGame = Console.ReadLine()?.Trim().Trim('"', '\'');
-        if (!string.IsNullOrWhiteSpace(newGame)) saved["game_path"] = newGame;
+        string newBase = AnsiConsole.Prompt(
+            new TextPrompt<string>("New API Base URL: ")
+                .AllowEmpty());
+        if (!string.IsNullOrWhiteSpace(newBase)) saved["api_base"] = newBase.Trim().TrimEnd('/');
 
-        Console.Write("Enter BONELAB Mods Folder Path: ");
-        string? newMods = Console.ReadLine()?.Trim().Trim('"', '\'');
-        if (!string.IsNullOrWhiteSpace(newMods)) saved["mods_path"] = newMods;
+        string newGame = AnsiConsole.Prompt(
+            new TextPrompt<string>("New BONELAB Game Folder: ")
+                .AllowEmpty());
+        if (!string.IsNullOrWhiteSpace(newGame)) saved["game_path"] = newGame.Trim().Trim('"', '\'');
+
+        string newMods = AnsiConsole.Prompt(
+            new TextPrompt<string>("New BONELAB Mods Folder: ")
+                .AllowEmpty());
+        if (!string.IsNullOrWhiteSpace(newMods)) saved["mods_path"] = newMods.Trim().Trim('"', '\'');
 
         File.WriteAllText(GetConfigPath(), JsonSerializer.Serialize(saved, new JsonSerializerOptions { WriteIndented = true }));
-        Console.WriteLine($"\nSettings saved to: {GetConfigPath()}");
+        AnsiConsole.MarkupLine($"\n[green][[SUCCESS]][/] Settings saved to: [cyan]{Markup.Escape(GetConfigPath())}[/]");
     }
 }

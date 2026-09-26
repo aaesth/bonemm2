@@ -40,15 +40,23 @@ public class CollectionObject
     [JsonPropertyName("name")] public string Name { get; set; } = "";
 }
 
+public class ModStatsObject
+{
+    [JsonPropertyName("downloads_total")] public int DownloadsTotal { get; set; }
+}
+
 public class ModObject
 {
     [JsonPropertyName("id")] public int Id { get; set; }
     [JsonPropertyName("name")] public string Name { get; set; } = "";
+    [JsonPropertyName("summary")] public string Summary { get; set; } = "";
     [JsonPropertyName("modfile")] public ModfileObject? Modfile { get; set; }
+    [JsonPropertyName("stats")] public ModStatsObject? Stats { get; set; }
 }
 
 public class ModfileObject
 {
+    [JsonPropertyName("id")] public int Id { get; set; }
     [JsonPropertyName("filename")] public string Filename { get; set; } = "";
     [JsonPropertyName("filesize")] public long? Filesize { get; set; }
     [JsonPropertyName("download")] public DownloadObject? Download { get; set; }
@@ -64,6 +72,32 @@ public class ModfilePlatformObject
 public class DownloadObject
 {
     [JsonPropertyName("binary_url")] public string BinaryUrl { get; set; } = "";
+}
+
+public class ModManifest
+{
+    [JsonPropertyName("mod_id")] public int ModId { get; set; }
+    [JsonPropertyName("game_id")] public int GameId { get; set; }
+    [JsonPropertyName("modfile_id")] public int ModfileId { get; set; }
+    [JsonPropertyName("name")] public string Name { get; set; } = "";
+    [JsonPropertyName("filename")] public string Filename { get; set; } = "";
+    [JsonPropertyName("downloaded_at")] public DateTime DownloadedAt { get; set; }
+}
+
+public class DownloadLogEntry
+{
+    [JsonPropertyName("name")] public string Name { get; set; } = "";
+    [JsonPropertyName("status")] public string Status { get; set; } = ""; // "success" | "skipped" | "failed"
+    [JsonPropertyName("error")] public string? Error { get; set; }
+    [JsonPropertyName("bytes")] public long Bytes { get; set; }
+    [JsonPropertyName("path")] public string? Path { get; set; }
+}
+
+public class DownloadLog
+{
+    [JsonPropertyName("timestamp")] public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+    [JsonPropertyName("source_url")] public string? SourceUrl { get; set; }
+    [JsonPropertyName("results")] public List<DownloadLogEntry> Results { get; set; } = new();
 }
 
 public class GitHubAsset

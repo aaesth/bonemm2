@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using Spectre.Console;
 
 namespace Bonemm2;
 
@@ -8,19 +9,20 @@ public static class GameInstaller
 
     public static async Task Run()
     {
-        Console.WriteLine("=== BONELAB Game Downloader ===");
-        Console.WriteLine($"Source: {BonelabCdnUrl}\n");
+        AnsiConsole.MarkupLine("[bold cyan]=== BONELAB Game Downloader ===[/]");
+        AnsiConsole.MarkupLine($"Source: [link={BonelabCdnUrl}]{BonelabCdnUrl}[/]\n");
 
-        Console.Write("Enter target installation folder path:\n> ");
-        string? inputPath = Console.ReadLine()?.Trim().Trim('"', '\'');
+        string inputPath = AnsiConsole.Prompt(
+            new TextPrompt<string>("Enter target installation folder path:\n> ")
+                .PromptStyle("cyan"));
 
         if (string.IsNullOrWhiteSpace(inputPath))
         {
-            Console.WriteLine("[ERROR] Installation path cannot be empty.");
+            AnsiConsole.MarkupLine("[red][[ERROR]][/] Installation path cannot be empty.");
             return;
         }
 
-        string targetDir = Path.GetFullPath(inputPath);
+        string targetDir = Path.GetFullPath(inputPath.Trim().Trim('"', '\''));
         Directory.CreateDirectory(targetDir);
 
         string zipPath = Path.Combine(targetDir, "bonelab_game.zip");
@@ -28,7 +30,7 @@ public static class GameInstaller
         using var client = new HttpClient { Timeout = TimeSpan.FromHours(2) };
         client.DefaultRequestHeaders.Add("User-Agent", "bonemm2-downloader");
 
-        Console.WriteLine($"\nDownloading BONELAB archive to:\n  {zipPath}\n");
+        AnsiConsole.MarkupLine($"\nDownloading BONELAB archive to:\n  [grey]{Markup.Escape(zipPath)}[/]\n");
 
         try
         {
@@ -37,42 +39,43 @@ public static class GameInstaller
                 response.EnsureSuccessStatusCode();
 
                 long totalBytes = response.Content.Headers.ContentLength ?? 0;
-                long bytesDownloaded = 0;
 
                 await using var httpStream = await response.Content.ReadAsStreamAsync();
                 await using var fileStream = new FileStream(zipPath, FileMode.Create, FileAccess.Write, FileShare.None);
 
-                var buffer = new byte[81920]; // 80KB chunks
-                int read;
-                while ((read = await httpStream.ReadAsync(buffer)) > 0)
-                {
-                    await fileStream.WriteAsync(buffer.AsMemory(0, read));
-                    bytesDownloaded += read;
-
-                    if (totalBytes > 0)
+                await AnsiConsole.Progress()
+                    .AutoClear(false)
+                    .Columns(
+                        new TaskDescriptionColumn(),
+                        new ProgressBarColumn(),
+                        new PercentageColumn(),
+                        new RemainingTimeColumn(),
+                        new SpinnerColumn())
+                    .StartAsync(async ctx =>
                     {
-                        double pct = (double)bytesDownloaded / totalBytes;
-                        Console.Write($"\r  [{Helpers.GetBar(pct, 30)}] {pct:P0} | {Helpers.HumanSize(bytesDownloaded)} / {Helpers.HumanSize(totalBytes)}");
-                    }
-                    else
-                    {
-                        Console.Write($"\r  Downloaded {Helpers.HumanSize(bytesDownloaded)}...");
-                    }
-                }
-                Console.WriteLine();
+                        var task = ctx.AddTask("[green]Downloading BONELAB[/]", maxValue: totalBytes > 0 ? totalBytes : 100);
+                        var buffer = new byte[81920];
+                        int read;
+                        while ((read = await httpStream.ReadAsync(buffer)) > 0)
+                        {
+                            await fileStream.WriteAsync(buffer.AsMemory(0, read));
+                            if (totalBytes > 0)
+                                task.Increment(read);
+                        }
+                    });
             }
 
-            Console.WriteLine("\nExtracting game files...");
+            AnsiConsole.MarkupLine("\n[cyan]Extracting game files...[/]");
             ZipFile.ExtractToDirectory(zipPath, targetDir, overwriteFiles: true);
 
-            Console.WriteLine("Cleaning up archive...");
+            AnsiConsole.MarkupLine("[grey]Cleaning up archive...[/]");
             File.Delete(zipPath);
 
-            Console.WriteLine($"\n[SUCCESS] BONELAB downloaded and extracted to:\n  {targetDir}");
+            AnsiConsole.MarkupLine($"\n[green][[SUCCESS]][/] BONELAB downloaded and extracted to:\n  [cyan]{Markup.Escape(targetDir)}[/]");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"\n[ERROR] Download/Extraction failed: {ex.Message}");
+            AnsiConsole.MarkupLine($"\n[red][[ERROR]][/] Download/Extraction failed: {Markup.Escape(ex.Message)}");
             if (File.Exists(zipPath))
             {
                 try { File.Delete(zipPath); } catch { }

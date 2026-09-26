@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO.Compression;
 using System.Net.Http.Json;
 using System.Reflection;
+using Spectre.Console;
 
 namespace Bonemm2;
 
@@ -27,7 +28,7 @@ public static class Updater
     public static async Task CheckForUpdatesAsync()
     {
         string currentVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0";
-        Console.WriteLine($"Checking latest version from GitHub... (Current: v{currentVersion})");
+        AnsiConsole.MarkupLine($"Checking latest version from GitHub... (Current: [cyan]v{currentVersion}[/])");
 
         try
         {
@@ -40,7 +41,7 @@ public static class Updater
 
             if (releases == null || releases.Count == 0)
             {
-                Console.WriteLine("\n[INFO] No releases found on GitHub.");
+                AnsiConsole.MarkupLine("\n[yellow][[INFO]][/] No releases found on GitHub.");
                 return;
             }
 
@@ -48,7 +49,7 @@ public static class Updater
             var latestRelease = releases.First();
             string tag = latestRelease.TagName;
 
-            Console.WriteLine($"Latest release on GitHub: {tag}{(latestRelease.Prerelease ? " [Pre-release]" : "")}");
+            AnsiConsole.MarkupLine($"Latest release on GitHub: [cyan]{tag}[/]{(latestRelease.Prerelease ? " [yellow][[Pre-release]][/]" : "")}");
 
             string cleanTag = tag.TrimStart('v');
             
@@ -56,21 +57,19 @@ public static class Updater
             {
                 if (latestVersion <= localVersion)
                 {
-                    Console.WriteLine("You are running the latest version!");
+                    AnsiConsole.MarkupLine("[green]You are running the latest version![/]");
                     return;
                 }
             }
             else if (string.Equals(cleanTag, currentVersion, StringComparison.OrdinalIgnoreCase))
             {
-                Console.WriteLine("You are running the latest version!");
+                AnsiConsole.MarkupLine("[green]You are running the latest version![/]");
                 return;
             }
 
-            Console.WriteLine($"\n[UPDATE AVAILABLE] Version {tag} is ready!");
-            Console.Write("Would you like to update now? [Y/n]: ");
-            
-            string? choice = Console.ReadLine()?.Trim().ToLower();
-            if (choice is "n" or "no") return;
+            AnsiConsole.MarkupLine($"\n[bold green][[UPDATE AVAILABLE]][/] Version [bold cyan]{tag}[/] is ready!");
+            if (!AnsiConsole.Confirm("Would you like to update now?", defaultValue: true))
+                return;
 
             // Prefer the platform-specific binary; only fall back to a zip as a last resort.
             GitHubAsset? asset;
@@ -97,7 +96,7 @@ public static class Updater
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"\nUpdate check failed: {ex.Message}");
+            AnsiConsole.MarkupLine($"\n[red]Update check failed: {Markup.Escape(ex.Message)}[/]");
         }
     }
 
@@ -110,40 +109,41 @@ public static class Updater
         string tempFilePath = currentExePath + ".tmp";
         string oldFilePath = currentExePath + ".old";
 
-        Console.WriteLine($"\nDownloading binary payload from:\n{downloadUrl}");
+        AnsiConsole.MarkupLine($"\nDownloading binary payload from:\n[dim]{downloadUrl}[/]");
         
         using (var response = await client.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead))
         {
             if (!response.IsSuccessStatusCode)
             {
-                Console.WriteLine($"\n[ERROR] Failed to download asset (HTTP {(int)response.StatusCode}).");
+                AnsiConsole.MarkupLine($"\n[red][[ERROR]][/] Failed to download asset (HTTP {(int)response.StatusCode}).");
                 return;
             }
 
             long totalBytes = response.Content.Headers.ContentLength ?? 0;
-            long bytesDownloaded = 0;
 
             await using var stream = await response.Content.ReadAsStreamAsync();
             await using var file = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write, FileShare.None);
             
-            var buffer = new byte[81920];
-            int read;
-            while ((read = await stream.ReadAsync(buffer)) > 0)
-            {
-                await file.WriteAsync(buffer.AsMemory(0, read));
-                bytesDownloaded += read;
-
-                if (totalBytes > 0)
+            await AnsiConsole.Progress()
+                .AutoClear(false)
+                .Columns(
+                    new TaskDescriptionColumn(),
+                    new ProgressBarColumn(),
+                    new PercentageColumn(),
+                    new RemainingTimeColumn(),
+                    new SpinnerColumn())
+                .StartAsync(async ctx =>
                 {
-                    double pct = (double)bytesDownloaded / totalBytes;
-                    Console.Write($"\r  [{Helpers.GetBar(pct, 30)}] {pct:P0} | {Helpers.HumanSize(bytesDownloaded)} / {Helpers.HumanSize(totalBytes)}");
-                }
-                else
-                {
-                    Console.Write($"\r  Downloaded {Helpers.HumanSize(bytesDownloaded)}...");
-                }
-            }
-            Console.WriteLine();
+                    var task = ctx.AddTask("[green]Downloading update[/]", maxValue: totalBytes > 0 ? totalBytes : 100);
+                    var buffer = new byte[81920];
+                    int read;
+                    while ((read = await stream.ReadAsync(buffer)) > 0)
+                    {
+                        await file.WriteAsync(buffer.AsMemory(0, read));
+                        if (totalBytes > 0)
+                            task.Increment(read);
+                    }
+                });
         }
 
         // If the downloaded file is a zip, extract the correct binary from it.
@@ -154,7 +154,7 @@ public static class Updater
             File.Move(extractedBinary, tempFilePath);
         }
 
-        Console.WriteLine("Applying update...");
+        AnsiConsole.MarkupLine("[cyan]Applying update...[/]");
         if (File.Exists(oldFilePath)) File.Delete(oldFilePath);
 
         File.Move(currentExePath, oldFilePath);
@@ -165,8 +165,8 @@ public static class Updater
             Process.Start("chmod", $"+x \"{currentExePath}\"")?.WaitForExit();
         }
 
-        Console.WriteLine("\n[SUCCESS] Update applied successfully!");
-        Console.WriteLine("Please run the application again to use the new version.");
+        AnsiConsole.MarkupLine("\n[green][[SUCCESS]][/] Update applied successfully!");
+        AnsiConsole.MarkupLine("Please run the application again to use the new version.");
         Environment.Exit(0);
     }
 

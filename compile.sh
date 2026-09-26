@@ -1,4 +1,5 @@
 #!/bin/bash
+export PATH="$PATH:$HOME/.dotnet:/usr/share/dotnet"
 
 CSPROJ=$(ls *.csproj 2>/dev/null | head -n 1)
 

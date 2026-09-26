@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using Spectre.Console;
 
 namespace Bonemm2;
 
@@ -6,7 +7,7 @@ public static class MelonLoaderSetup
 {
     public static async Task Run()
     {
-        Console.WriteLine("=== MelonLoader Setup ===");
+        AnsiConsole.MarkupLine("[bold cyan]=== MelonLoader Setup ===[/]");
         string gamePath = Helpers.GetGameFolder();
 
         string downloadUrl = "https://github.com/LavaGang/MelonLoader/releases/latest/download/MelonLoader.x64.zip";
@@ -15,7 +16,7 @@ public static class MelonLoaderSetup
         using var mlHttp = new HttpClient();
         mlHttp.DefaultRequestHeaders.Add("User-Agent", "bonemm2-cli");
 
-        Console.WriteLine("\nDownloading latest MelonLoader (x64)...");
+        AnsiConsole.MarkupLine("\nDownloading latest MelonLoader (x64)...");
         
         try
         {
@@ -24,43 +25,47 @@ public static class MelonLoaderSetup
                 response.EnsureSuccessStatusCode();
 
                 long totalBytes = response.Content.Headers.ContentLength ?? 0;
-                long bytesDownloaded = 0;
 
-                await using (var httpStream = await response.Content.ReadAsStreamAsync())
-                await using (var fileStream = new FileStream(zipPath, FileMode.Create, FileAccess.Write, FileShare.None))
-                {
-                    var buffer = new byte[81920];
-                    int read;
-                    while ((read = await httpStream.ReadAsync(buffer)) > 0)
+                await using var httpStream = await response.Content.ReadAsStreamAsync();
+                await using var fileStream = new FileStream(zipPath, FileMode.Create, FileAccess.Write, FileShare.None);
+
+                await AnsiConsole.Progress()
+                    .AutoClear(false)
+                    .Columns(
+                        new TaskDescriptionColumn(),
+                        new ProgressBarColumn(),
+                        new PercentageColumn(),
+                        new RemainingTimeColumn(),
+                        new SpinnerColumn())
+                    .StartAsync(async ctx =>
                     {
-                        await fileStream.WriteAsync(buffer.AsMemory(0, read));
-                        bytesDownloaded += read;
-
-                        if (totalBytes > 0)
+                        var task = ctx.AddTask("[green]Downloading MelonLoader.x64.zip[/]", maxValue: totalBytes > 0 ? totalBytes : 100);
+                        var buffer = new byte[81920];
+                        int read;
+                        while ((read = await httpStream.ReadAsync(buffer)) > 0)
                         {
-                            double pct = (double)bytesDownloaded / totalBytes;
-                            Console.Write($"\r  [{Helpers.GetBar(pct, 30)}] {pct:P0} | {Helpers.HumanSize(bytesDownloaded)} / {Helpers.HumanSize(totalBytes)}");
+                            await fileStream.WriteAsync(buffer.AsMemory(0, read));
+                            if (totalBytes > 0)
+                                task.Increment(read);
                         }
-                        else
-                        {
-                            Console.Write($"\r  Downloaded {Helpers.HumanSize(bytesDownloaded)}...");
-                        }
-                    }
-                    Console.WriteLine();
-                }
+                    });
             }
 
-            Console.WriteLine("Extracting to game folder...");
+            AnsiConsole.MarkupLine("\n[cyan]Extracting to game folder...[/]");
             ZipFile.ExtractToDirectory(zipPath, gamePath, overwriteFiles: true);
 
-            Console.WriteLine("Cleaning up zip archive...");
+            AnsiConsole.MarkupLine("[grey]Cleaning up zip archive...[/]");
             File.Delete(zipPath);
 
-            Console.WriteLine("\n[SUCCESS] MelonLoader installed!");
+            AnsiConsole.MarkupLine("\n[green][[SUCCESS]][/] MelonLoader installed!");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"\n[ERROR] Failed to install MelonLoader: {ex.Message}");
+            AnsiConsole.MarkupLine($"\n[red][[ERROR]][/] Failed to install MelonLoader: {Markup.Escape(ex.Message)}");
+            if (File.Exists(zipPath))
+            {
+                try { File.Delete(zipPath); } catch { }
+            }
         }
     }
 }

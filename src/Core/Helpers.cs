@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Spectre.Console;
 
 namespace Bonemm2;
 
@@ -114,20 +115,12 @@ public static class Helpers
         }
 
         // 3. Prompt user if auto-detection failed
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("\n[!] Could not automatically locate your BONELAB Mods folder.");
-        Console.ResetColor();
-        Console.Write("Please enter/paste your target BONELAB Mods directory path:\n> ");
+        AnsiConsole.MarkupLine("\n[yellow][!] Could not automatically locate your BONELAB Mods folder.[/]");
+        string customInput = AnsiConsole.Prompt(
+            new TextPrompt<string>("Please enter/paste your target BONELAB Mods directory path:\n> ")
+                .PromptStyle("cyan"));
 
-        string? customInput = Console.ReadLine()?.Trim().Trim('"', '\'');
-
-        while (string.IsNullOrWhiteSpace(customInput))
-        {
-            Console.Write("Path cannot be empty. Please enter a valid path:\n> ");
-            customInput = Console.ReadLine()?.Trim().Trim('"', '\'');
-        }
-
-        string fullPath = Path.GetFullPath(customInput);
+        string fullPath = Path.GetFullPath(customInput.Trim().Trim('"', '\''));
         Directory.CreateDirectory(fullPath);
         
         // Save for future runs
@@ -143,20 +136,25 @@ public static class Helpers
         // Check if we have a saved valid game_path
         if (saved.TryGetValue("game_path", out var savedGame) && !string.IsNullOrWhiteSpace(savedGame) && Directory.Exists(savedGame))
         {
-            Console.WriteLine($"Using saved game path: {savedGame}");
+            AnsiConsole.MarkupLine($"Using saved game path: [green]{Markup.Escape(savedGame)}[/]");
             return savedGame;
         }
 
-        Console.Write("Enter your BONELAB game folder path\n(Where BONELAB_Steam_Windows64.exe is located):\n> ");
-        string? gamePath = Console.ReadLine()?.Trim().Trim('"', '\'');
-
-        while (string.IsNullOrWhiteSpace(gamePath) || !Directory.Exists(gamePath))
+        string fullPath = "";
+        while (true)
         {
-            Console.Write("Invalid path or directory does not exist. Please enter a valid folder:\n> ");
-            gamePath = Console.ReadLine()?.Trim().Trim('"', '\'');
-        }
+            string gamePath = AnsiConsole.Prompt(
+                new TextPrompt<string>("Enter your BONELAB game folder path\n(Where BONELAB_Steam_Windows64.exe is located):\n> ")
+                    .PromptStyle("cyan"));
 
-        string fullPath = Path.GetFullPath(gamePath);
+            string cleaned = gamePath.Trim().Trim('"', '\'');
+            if (!string.IsNullOrWhiteSpace(cleaned) && Directory.Exists(cleaned))
+            {
+                fullPath = Path.GetFullPath(cleaned);
+                break;
+            }
+            AnsiConsole.MarkupLine("[red]Invalid path or directory does not exist. Please try again.[/]");
+        }
         
         // Save for future runs
         SettingsManager.SaveConfigValue("game_path", fullPath);

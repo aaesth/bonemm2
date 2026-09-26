@@ -115,7 +115,7 @@ public static class Helpers
         }
 
         // 3. Prompt user if auto-detection failed
-        AnsiConsole.MarkupLine("\n[yellow][!] Could not automatically locate your BONELAB Mods folder.[/]");
+        AnsiConsole.MarkupLine("\n[yellow][[!] Could not automatically locate your BONELAB Mods folder.[/]");
         string customInput = AnsiConsole.Prompt(
             new TextPrompt<string>("Please enter/paste your target BONELAB Mods directory path:\n> ")
                 .PromptStyle("cyan"));

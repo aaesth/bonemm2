@@ -18,7 +18,7 @@ public static class DownloadLogger
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[yellow][!][/] Failed to save download log: {Markup.Escape(ex.Message)}");
+            AnsiConsole.MarkupLine($"[yellow][[!]][/] Failed to save download log: {Markup.Escape(ex.Message)}");
         }
     }
 }

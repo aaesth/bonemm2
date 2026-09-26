@@ -74,6 +74,14 @@ public class DownloadObject
     [JsonPropertyName("binary_url")] public string BinaryUrl { get; set; } = "";
 }
 
+public class BonelabPallet
+{
+    [JsonPropertyName("barcode")] public string? Barcode { get; set; }
+    [JsonPropertyName("title")] public string? Title { get; set; }
+    [JsonPropertyName("author")] public string? Author { get; set; }
+    [JsonPropertyName("version")] public string? Version { get; set; }
+}
+
 public class ModManifest
 {
     [JsonPropertyName("mod_id")] public int ModId { get; set; }

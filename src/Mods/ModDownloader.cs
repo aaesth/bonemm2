@@ -220,7 +220,7 @@ public static class ModDownloader
                         {
                             try
                             {
-                                ZipFile.ExtractToDirectory(destPath, modFolder, overwriteFiles: true);
+                                ExtractArchiveAndTag(destPath, modFolder, manifest);
                             }
                             catch (InvalidDataException)
                             {
@@ -272,6 +272,47 @@ public static class ModDownloader
         }
     }
 
+    public static void ExtractArchiveAndTag(string zipPath, string targetPath, ModManifest? manifest = null)
+    {
+        List<string> rootFolders = new();
+        try
+        {
+            using (var archive = ZipFile.OpenRead(zipPath))
+            {
+                rootFolders = archive.Entries
+                    .Select(e => e.FullName.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault())
+                    .Where(f => !string.IsNullOrEmpty(f))
+                    .Distinct()
+                    .ToList()!;
+            }
+        }
+        catch { }
+
+        ZipFile.ExtractToDirectory(zipPath, targetPath, overwriteFiles: true);
+
+        if (manifest is null)
+        {
+            string manifestPath = Path.Combine(Path.GetDirectoryName(zipPath)!, "manifest.json");
+            if (File.Exists(manifestPath))
+            {
+                try { manifest = JsonSerializer.Deserialize<ModManifest>(File.ReadAllText(manifestPath), JsonOptions); } catch { }
+            }
+        }
+
+        if (manifest is not null)
+        {
+            string json = JsonSerializer.Serialize(manifest, JsonOptions);
+            foreach (var folder in rootFolders)
+            {
+                string destModDir = Path.Combine(targetPath, folder);
+                if (Directory.Exists(destModDir))
+                {
+                    try { File.WriteAllText(Path.Combine(destModDir, ".bonemm2.json"), json); } catch { }
+                }
+            }
+        }
+    }
+
     public static void ExtractAllToGameFolder(string sourceFolder)
     {
         AnsiConsole.MarkupLine("[bold cyan]=== Bulk Extract Mods ===[/]");
@@ -310,7 +351,7 @@ public static class ModDownloader
             try
             {
                 AnsiConsole.Markup($"Extracting [bold]{Markup.Escape(fileName)}[/]... ");
-                ZipFile.ExtractToDirectory(zipPath, targetPath, overwriteFiles: true);
+                ExtractArchiveAndTag(zipPath, targetPath);
                 AnsiConsole.MarkupLine("[green][[DONE]][/]");
                 success++;
             }

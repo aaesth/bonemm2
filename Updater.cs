@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO.Compression;
 using System.Net.Http.Json;
 using System.Reflection;
 
@@ -174,7 +175,7 @@ public static class Updater
     /// </summary>
     private static string ExtractBinaryFromZip(string zipPath, string extractDir)
     {
-        using var archive = System.IO.Compression.ZipFile.OpenRead(zipPath);
+        using var archive = ZipFile.OpenRead(zipPath);
 
         // On Windows look for *.exe; on Linux look for a file without extension named bonemm2.
         var entry = OperatingSystem.IsWindows()
@@ -190,3 +191,4 @@ public static class Updater
         entry.ExtractToFile(dest, overwrite: true);
         return dest;
     }
+}

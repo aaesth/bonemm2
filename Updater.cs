@@ -71,16 +71,28 @@ public static class Updater
             string? choice = Console.ReadLine()?.Trim().ToLower();
             if (choice is "n" or "no") return;
 
-            // Find matching binary asset or fallback to download link
-            var asset = latestRelease.Assets.FirstOrDefault(a => 
-                a.Name.Equals("bonemm2", StringComparison.OrdinalIgnoreCase) ||
-                a.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
-                a.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase));
+            // Prefer the platform-specific binary; only fall back to a zip as a last resort.
+            GitHubAsset? asset;
+            if (OperatingSystem.IsWindows())
+            {
+                asset = latestRelease.Assets.FirstOrDefault(a => a.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                     ?? latestRelease.Assets.FirstOrDefault(a => a.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase));
+            }
+            else
+            {
+                asset = latestRelease.Assets.FirstOrDefault(a =>
+                            !a.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) &&
+                            !a.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) &&
+                            a.Name.StartsWith("bonemm2", StringComparison.OrdinalIgnoreCase))
+                     ?? latestRelease.Assets.FirstOrDefault(a => a.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase));
+            }
 
-            string downloadUrl = asset?.BrowserDownloadUrl 
-                ?? $"https://github.com/{RepoOwner}/{RepoName}/releases/download/{tag}/bonemm2";
+            string downloadUrl = asset?.BrowserDownloadUrl
+                ?? $"https://github.com/{RepoOwner}/{RepoName}/releases/download/{tag}/"
+                 + (OperatingSystem.IsWindows() ? "bonemm2.exe" : "bonemm2");
 
-            await ApplyUpdateAsync(client, downloadUrl);
+            bool isZip = asset?.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ?? false;
+            await ApplyUpdateAsync(client, downloadUrl, isZip);
         }
         catch (Exception ex)
         {
@@ -88,7 +100,7 @@ public static class Updater
         }
     }
 
-    private static async Task ApplyUpdateAsync(HttpClient client, string downloadUrl)
+    private static async Task ApplyUpdateAsync(HttpClient client, string downloadUrl, bool isZip = false)
     {
         string currentExePath = Process.GetCurrentProcess().MainModule?.FileName 
                                 ?? Environment.ProcessPath 
@@ -133,6 +145,14 @@ public static class Updater
             Console.WriteLine();
         }
 
+        // If the downloaded file is a zip, extract the correct binary from it.
+        if (isZip)
+        {
+            string extractedBinary = ExtractBinaryFromZip(tempFilePath, Path.GetDirectoryName(currentExePath)!);
+            File.Delete(tempFilePath);
+            File.Move(extractedBinary, tempFilePath);
+        }
+
         Console.WriteLine("Applying update...");
         if (File.Exists(oldFilePath)) File.Delete(oldFilePath);
 
@@ -148,4 +168,25 @@ public static class Updater
         Console.WriteLine("Please run the application again to use the new version.");
         Environment.Exit(0);
     }
-}
+
+    /// <summary>
+    /// Extracts the platform-appropriate binary from a zip archive and returns the path to it.
+    /// </summary>
+    private static string ExtractBinaryFromZip(string zipPath, string extractDir)
+    {
+        using var archive = System.IO.Compression.ZipFile.OpenRead(zipPath);
+
+        // On Windows look for *.exe; on Linux look for a file without extension named bonemm2.
+        var entry = OperatingSystem.IsWindows()
+            ? archive.Entries.FirstOrDefault(e => e.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            : archive.Entries.FirstOrDefault(e =>
+                !e.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) &&
+                e.Name.StartsWith("bonemm2", StringComparison.OrdinalIgnoreCase));
+
+        if (entry is null)
+            throw new InvalidOperationException("Could not find a suitable binary inside the update zip.");
+
+        string dest = Path.Combine(extractDir, entry.Name + ".extracted");
+        entry.ExtractToFile(dest, overwrite: true);
+        return dest;
+    }

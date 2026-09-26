@@ -263,21 +263,29 @@ public static class ModDownloader
     private static async Task DownloadFileChunked(HttpClient client, string url, string destPath, Action<int> onProgress)
     {
         string tmpPath = destPath + ".part";
-        using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
-        response.EnsureSuccessStatusCode();
-
-        await using var httpStream = await response.Content.ReadAsStreamAsync();
-        await using var fileStream = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.None);
-        var buffer = new byte[81920];
-        int read;
-        while ((read = await httpStream.ReadAsync(buffer)) > 0)
+        try
         {
-            await fileStream.WriteAsync(buffer.AsMemory(0, read));
-            onProgress(read); 
-        }
+            using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            response.EnsureSuccessStatusCode();
 
-        if (File.Exists(destPath)) File.Delete(destPath);
-        File.Move(tmpPath, destPath);
+            await using var httpStream = await response.Content.ReadAsStreamAsync();
+            await using var fileStream = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.None);
+            var buffer = new byte[81920];
+            int read;
+            while ((read = await httpStream.ReadAsync(buffer)) > 0)
+            {
+                await fileStream.WriteAsync(buffer.AsMemory(0, read));
+                onProgress(read);
+            }
+
+            if (File.Exists(destPath)) File.Delete(destPath);
+            File.Move(tmpPath, destPath);
+        }
+        catch
+        {
+            try { if (File.Exists(tmpPath)) File.Delete(tmpPath); } catch { }
+            throw;
+        }
     }
 
     private static async Task<T> ApiGet<T>(HttpClient client, string apiBase, string path, string apiKey, params (string key, string value)[] queryParams)

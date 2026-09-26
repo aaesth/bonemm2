@@ -25,14 +25,17 @@ public static class Updater
         catch { /* Ignore lock errors */ }
     }
 
-    public static async Task CheckForUpdatesAsync()
+    public static async Task CheckForUpdatesAsync(bool silentIfLatest = false)
     {
         string currentVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0";
-        AnsiConsole.MarkupLine($"Checking latest version from GitHub... (Current: [cyan]v{currentVersion}[/])");
+        if (!silentIfLatest)
+        {
+            AnsiConsole.MarkupLine($"Checking latest version from GitHub... (Current: [cyan]v{currentVersion}[/])");
+        }
 
         try
         {
-            using var client = new HttpClient();
+            using var client = new HttpClient { Timeout = silentIfLatest ? TimeSpan.FromSeconds(4) : TimeSpan.FromSeconds(15) };
             client.DefaultRequestHeaders.Add("User-Agent", "bonemm2-updater");
 
             // Fetch ALL releases (includes pre-releases)
@@ -41,7 +44,8 @@ public static class Updater
 
             if (releases == null || releases.Count == 0)
             {
-                AnsiConsole.MarkupLine("\n[yellow][[INFO]][/] No releases found on GitHub.");
+                if (!silentIfLatest)
+                    AnsiConsole.MarkupLine("\n[yellow][[INFO]][/] No releases found on GitHub.");
                 return;
             }
 
@@ -49,22 +53,27 @@ public static class Updater
             var latestRelease = releases.First();
             string tag = latestRelease.TagName;
 
-            AnsiConsole.MarkupLine($"Latest release on GitHub: [cyan]{tag}[/]{(latestRelease.Prerelease ? " [yellow][[Pre-release]][/]" : "")}");
-
             string cleanTag = tag.TrimStart('v');
             
             if (Version.TryParse(cleanTag, out var latestVersion) && Version.TryParse(currentVersion, out var localVersion))
             {
                 if (latestVersion <= localVersion)
                 {
-                    AnsiConsole.MarkupLine("[green]You are running the latest version![/]");
+                    if (!silentIfLatest)
+                        AnsiConsole.MarkupLine("[green]You are running the latest version![/]");
                     return;
                 }
             }
             else if (string.Equals(cleanTag, currentVersion, StringComparison.OrdinalIgnoreCase))
             {
-                AnsiConsole.MarkupLine("[green]You are running the latest version![/]");
+                if (!silentIfLatest)
+                    AnsiConsole.MarkupLine("[green]You are running the latest version![/]");
                 return;
+            }
+
+            if (!silentIfLatest)
+            {
+                AnsiConsole.MarkupLine($"Latest release on GitHub: [cyan]{tag}[/]{(latestRelease.Prerelease ? " [yellow][[Pre-release]][/]" : "")}");
             }
 
             AnsiConsole.MarkupLine($"\n[bold green][[UPDATE AVAILABLE]][/] Version [bold cyan]{tag}[/] is ready!");
@@ -96,7 +105,10 @@ public static class Updater
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"\n[red]Update check failed: {Markup.Escape(ex.Message)}[/]");
+            if (!silentIfLatest)
+            {
+                AnsiConsole.MarkupLine($"\n[red]Update check failed: {Markup.Escape(ex.Message)}[/]");
+            }
         }
     }
 

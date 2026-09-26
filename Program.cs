@@ -89,6 +89,7 @@ if (skipMenu)
 }
 else
 {
+    await Updater.CheckForUpdatesAsync(silentIfLatest: true);
     await RunMenu();
 }
 
@@ -97,42 +98,124 @@ async Task RunMenu()
     while (true)
     {
         AnsiConsole.Clear();
-        AnsiConsole.MarkupLine("[grey]bonemm2 v1.3.0[/]\n");
+        AnsiConsole.MarkupLine("[grey]bonemm2 v1.3.1[/]\n");
+
+        var category = AnsiConsole.Prompt(
+            new SelectionPrompt<string>()
+                .Title("[bold cyan]Main Menu[/] - Select a category:")
+                .AddChoices(
+                    "Mods",
+                    "Code Mods (Fusion & MelonLoader)",
+                    "Settings & System",
+                    "Exit"));
+
+        if (category.StartsWith("Mods"))
+        {
+            await RunModsMenu();
+        }
+        else if (category.StartsWith("Code Mods"))
+        {
+            await RunCodeModsMenu();
+        }
+        else if (category.StartsWith("Settings"))
+        {
+            await RunSettingsSubMenu();
+        }
+        else if (category.StartsWith("Exit"))
+        {
+            break;
+        }
+    }
+}
+
+async Task RunModsMenu()
+{
+    while (true)
+    {
+        AnsiConsole.Clear();
+        AnsiConsole.MarkupLine("[bold cyan]=== Mods ===[/]\n");
 
         var choice = AnsiConsole.Prompt(
             new SelectionPrompt<string>()
-                .Title("Select an option:")
-                .PageSize(12)
+                .Title("Select a mod action:")
+                .PageSize(10)
                 .AddChoices(
-                    "1. Mod Downloader",
-                    "2. List Mods (Inspect Collection/Mod)",
-                    "3. Search Mods (mod.io)",
+                    "1. Mod Downloader (Paste Link)",
+                    "2. Search Mods (mod.io)",
+                    "3. List / Inspect Mods",
                     "4. Update Installed Mods",
                     "5. Uninstall Mods",
-                    "6. Extract All Downloads to BONELAB Mods Folder",
-                    "7. MelonLoader Setup",
-                    "8. Fusion Quick Setup (Multiplayer)",
-                    "9. Download BONELAB Game",
-                    "10. Settings",
-                    "11. Check for Updates",
-                    "12. Exit"));
+                    "6. Extract Downloads to BONELAB Mods Folder",
+                    "← Back to Main Menu"));
+
+        if (choice.StartsWith("← Back")) return;
 
         AnsiConsole.Clear();
 
         if (choice.StartsWith("1.")) await ModDownloader.Run(null, outputDir, extract, maxParallel, apiKeyArg, apiBaseArg);
-        else if (choice.StartsWith("2.")) await ModLister.Run(null, apiKeyArg, apiBaseArg);
-        else if (choice.StartsWith("3.")) await ModSearch.Run(null, "bonelab", outputDir, extract, maxParallel, apiKeyArg, apiBaseArg);
+        else if (choice.StartsWith("2.")) await ModSearch.Run(null, "bonelab", outputDir, extract, maxParallel, apiKeyArg, apiBaseArg);
+        else if (choice.StartsWith("3.")) await ModLister.Run(null, apiKeyArg, apiBaseArg);
         else if (choice.StartsWith("4.")) await ModUpdater.Run(outputDir, extract, maxParallel, apiKeyArg, apiBaseArg);
         else if (choice.StartsWith("5.")) ModUninstaller.Run(outputDir);
         else if (choice.StartsWith("6.")) ModDownloader.ExtractAllToGameFolder(outputDir);
-        else if (choice.StartsWith("7.")) await MelonLoaderSetup.Run();
-        else if (choice.StartsWith("8.")) await FusionInstaller.Run(apiKeyArg, apiBaseArg);
-        else if (choice.StartsWith("9.")) await GameInstaller.Run();
-        else if (choice.StartsWith("10.")) SettingsManager.RunSettingsMenu();
-        else if (choice.StartsWith("11.")) await Updater.CheckForUpdatesAsync();
-        else if (choice.StartsWith("12.")) break;
 
-        AnsiConsole.MarkupLine("\n[dim]Press Enter to return to the menu...[/]");
+        AnsiConsole.MarkupLine("\n[dim]Press Enter to continue...[/]");
+        Console.ReadLine();
+    }
+}
+
+async Task RunCodeModsMenu()
+{
+    while (true)
+    {
+        AnsiConsole.Clear();
+        AnsiConsole.MarkupLine("[bold cyan]=== Code Mods & Game Tools ===[/]\n");
+
+        var choice = AnsiConsole.Prompt(
+            new SelectionPrompt<string>()
+                .Title("Select a tool:")
+                .AddChoices(
+                    "1. MelonLoader Setup",
+                    "2. Fusion Quick Setup (Multiplayer)",
+                    "3. Download BONELAB Game",
+                    "← Back to Main Menu"));
+
+        if (choice.StartsWith("← Back")) return;
+
+        AnsiConsole.Clear();
+
+        if (choice.StartsWith("1.")) await MelonLoaderSetup.Run();
+        else if (choice.StartsWith("2.")) await FusionInstaller.Run(apiKeyArg, apiBaseArg);
+        else if (choice.StartsWith("3.")) await GameInstaller.Run();
+
+        AnsiConsole.MarkupLine("\n[dim]Press Enter to continue...[/]");
+        Console.ReadLine();
+    }
+}
+
+async Task RunSettingsSubMenu()
+{
+    while (true)
+    {
+        AnsiConsole.Clear();
+        AnsiConsole.MarkupLine("[bold cyan]=== Settings & System ===[/]\n");
+
+        var choice = AnsiConsole.Prompt(
+            new SelectionPrompt<string>()
+                .Title("Select an option:")
+                .AddChoices(
+                    "1. Configure Settings (API Key, Folders)",
+                    "2. Check for Updates",
+                    "← Back to Main Menu"));
+
+        if (choice.StartsWith("← Back")) return;
+
+        AnsiConsole.Clear();
+
+        if (choice.StartsWith("1.")) SettingsManager.RunSettingsMenu();
+        else if (choice.StartsWith("2.")) await Updater.CheckForUpdatesAsync();
+
+        AnsiConsole.MarkupLine("\n[dim]Press Enter to continue...[/]");
         Console.ReadLine();
     }
 }

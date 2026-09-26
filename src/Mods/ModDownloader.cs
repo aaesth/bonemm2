@@ -39,7 +39,7 @@ public static class ModDownloader
         AnsiConsole.MarkupLine($"\n[bold cyan]{plan.Count}[/] mod(s) total, [bold green]{Helpers.HumanSize(totalBytes)}[/] to download");
         if (unavailableCount > 0)
         {
-            AnsiConsole.MarkupLine($"[yellow][[!] {unavailableCount} mod(s) have no available Windows download file.[/]");
+            AnsiConsole.MarkupLine($"[yellow][[!]] {unavailableCount} mod(s) have no available Windows download file.[/]");
         }
 
         if (!updateMode && !AnsiConsole.Confirm("Start download?", defaultValue: true))
@@ -260,7 +260,7 @@ public static class ModDownloader
 
         if (!failures.IsEmpty)
         {
-            AnsiConsole.MarkupLine("\n[yellow][[!] Some items had issues:[/]");
+            AnsiConsole.MarkupLine("\n[yellow][[!]] Some items had issues:[/]");
             foreach (var fail in failures)
             {
                 AnsiConsole.MarkupLine($"  [red]•[/] {Markup.Escape(fail)}");

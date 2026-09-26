@@ -370,17 +370,22 @@ public static class ModDownloader
         string tmpPath = destPath + ".part";
         try
         {
-            using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
-            response.EnsureSuccessStatusCode();
-
-            await using var httpStream = await response.Content.ReadAsStreamAsync();
-            await using var fileStream = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.None);
-            var buffer = new byte[81920];
-            int read;
-            while ((read = await httpStream.ReadAsync(buffer)) > 0)
+            using (var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead))
             {
-                await fileStream.WriteAsync(buffer.AsMemory(0, read));
-                onProgress(read);
+                response.EnsureSuccessStatusCode();
+
+                await using (var httpStream = await response.Content.ReadAsStreamAsync())
+                await using (var fileStream = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    var buffer = new byte[81920];
+                    int read;
+                    while ((read = await httpStream.ReadAsync(buffer)) > 0)
+                    {
+                        await fileStream.WriteAsync(buffer.AsMemory(0, read));
+                        onProgress(read);
+                    }
+                    await fileStream.FlushAsync();
+                }
             }
 
             if (File.Exists(destPath)) File.Delete(destPath);
